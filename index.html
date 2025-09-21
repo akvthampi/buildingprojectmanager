@@ -1,219 +1,1979 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>React Flashcards from PDF</title>
-  <style>
-    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; margin: 0; }
-    header { padding: 12px 16px; border-bottom: 1px solid #e5e7eb; display: flex; gap: 12px; align-items: center; }
-    main { padding: 16px; max-width: 1100px; margin: 0 auto; }
-    .grid { display: grid; gap: 12px; }
-    @media (min-width: 900px){ .grid-2 { grid-template-columns: 1fr 1fr; } }
-    textarea { width: 100%; min-height: 220px; padding: 10px; border: 1px solid #d1d5db; border-radius: 6px; }
-    input[type="range"] { width: 240px; }
-    .btn { padding: 8px 12px; border: 1px solid #d1d5db; border-radius: 6px; background: #fff; cursor: pointer; }
-    .btn:disabled { opacity: 0.5; cursor: not-allowed; }
-    .btn-primary { background: #2563eb; border-color: #2563eb; color: #fff; }
-    .row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
-    .cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; }
-    .perspective{ perspective: 1000px; }
-    .preserve-3d{ transform-style: preserve-3d; }
-    .backface-hidden{ backface-visibility: hidden; }
-    .rotate-y-180{ transform: rotateY(180deg); }
-    .card { position: relative; height: 180px; border: 1px solid #e5e7eb; border-radius: 10px; padding: 12px; background: #fff; cursor: pointer; }
-    .flip { position: relative; width: 100%; height: 180px; transition: transform .5s; }
-    .front, .back { position: absolute; inset: 0; }
-    .front { background: #fff; }
-    .back { background: #f9fafb; transform: rotateY(180deg); }
-    .muted { color: #6b7280; font-size: 12px; }
-    .stat { display: inline-block; padding: 2px 8px; border: 1px solid #e5e7eb; border-radius: 999px; font-size: 12px; }
-    .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 12px; }
-  </style>
-  <script type="importmap">
-  {
-    "imports": {
-      "react": "https://esm.sh/react@18.3.1",
-      "react-dom/client": "https://esm.sh/react-dom@18.3.1/client",
-      "pdfjs-dist": "https://esm.sh/pdfjs-dist@4.7.76/build/pdf.mjs"
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Building Project Manager</title>
+<style>
+  :root{
+    --bg:#0e1a2b;
+    --bg-2:#12223a;
+    --panel:#162942;
+    --accent:#1f6feb;
+    --accent-2:#4ea1ff;
+    --text:#e6eefc;
+    --muted:#9fb3cc;
+    --success:#1fbf75;
+    --warn:#f59e0b;
+    --danger:#ef4444;
+    --border:#234059;
+    --radius: 12px;
+    --shadow: 0 4px 20px rgba(0, 0, 0, 0.25);
+  }
+  
+  * {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+  }
+  
+  body{
+    margin:0;
+    font-family: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, Noto Sans, sans-serif;
+    color: var(--text);
+    background: linear-gradient(180deg, var(--bg) 0%, var(--bg-2) 100%);
+    min-height: 100vh;
+    line-height: 1.5;
+  }
+  
+  .app{
+    display: flex;
+    min-height: 100vh;
+  }
+  
+  /* Improved Sidebar */
+  .sidebar {
+    width: 340px;
+    max-width: 100vw;
+    background: var(--panel);
+    border-right: 1px solid var(--border);
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    position: sticky;
+    top: 0;
+    height: 100vh;
+    overflow: hidden;
+    box-shadow: var(--shadow);
+    z-index: 10;
+  }
+  
+  .sidebar-content {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    overflow-y: auto;
+    scrollbar-width: thin;
+    scrollbar-color: var(--accent) var(--panel);
+    padding-right: 4px;
+    flex: 1;
+  }
+  
+  .sidebar-content::-webkit-scrollbar {
+    width: 6px;
+  }
+  
+  .sidebar-content::-webkit-scrollbar-track {
+    background: var(--panel);
+    border-radius: 3px;
+  }
+  
+  .sidebar-content::-webkit-scrollbar-thumb {
+    background: var(--accent);
+    border-radius: 3px;
+  }
+  
+  .brand{
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-weight: 700;
+    letter-spacing: .3px;
+    font-size: 20px;
+    padding: 8px 0;
+    margin-bottom: 8px;
+  }
+  
+  .brand .logo{
+    width: 40px;
+    height: 40px;
+    border-radius: 10px;
+    background: linear-gradient(135deg, var(--accent), var(--accent-2));
+    display: grid;
+    place-items: center;
+    color: #fff;
+    font-weight: 800;
+    box-shadow: 0 6px 20px rgba(31, 111, 235, 0.35);
+    font-size: 20px;
+  }
+  
+  .toolbar{
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    margin-bottom: 8px;
+  }
+  
+  .toolbar button, .toolbar label[for="importFile"] {
+    background: var(--accent);
+    color: #fff;
+    border: 0;
+    border-radius: var(--radius);
+    padding: 12px 14px;
+    cursor: pointer;
+    font-weight: 600;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    font-size: 14px;
+  }
+  
+  .toolbar button:hover, .toolbar label[for="importFile"]:hover {
+    background: var(--accent-2);
+    transform: translateY(-2px);
+  }
+  
+  .toolbar button.secondary {
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--text);
+  }
+  
+  .toolbar button.secondary:hover {
+    background: rgba(255, 255, 255, 0.08);
+  }
+  
+  .search-box {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  
+  .search-box input, .search-box select {
+    width: 100%;
+    background: #0f1f36;
+    color: var(--text);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 12px;
+    outline: none;
+    font-size: 14px;
+    transition: border-color 0.2s;
+  }
+  
+  .search-box input:focus, .search-box select:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 2px rgba(31, 111, 235, 0.2);
+  }
+  
+  .section-title {
+    margin: 16px 0 8px;
+    color: var(--muted);
+    font-size: 13px;
+    text-transform: uppercase;
+    letter-spacing: .15em;
+    font-weight: 600;
+  }
+  
+  .project-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-bottom: 16px;
+  }
+  
+  .project-item {
+    border: 1px solid var(--border);
+    background: #0f1f36;
+    border-radius: var(--radius);
+    padding: 16px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+  }
+  
+  .project-item:hover {
+    outline: 2px solid var(--accent);
+    transform: translateY(-2px);
+    box-shadow: var(--shadow);
+  }
+  
+  .project-item.active {
+    outline: 2px solid var(--accent);
+    background: rgba(31, 111, 235, 0.1);
+  }
+  
+  .project-meta {
+    color: var(--muted);
+    font-size: 13px;
+    margin: 6px 0;
+  }
+  
+  .progress {
+    height: 10px;
+    border-radius: 10px;
+    background: #0b1626;
+    border: 1px solid var(--border);
+    overflow: hidden;
+    margin-top: 10px;
+  }
+  
+  .progress > span {
+    display: block;
+    height: 100%;
+    background: linear-gradient(90deg, var(--accent), var(--accent-2));
+    transition: width 0.5s ease;
+    border-radius: 10px;
+  }
+  
+  .footer {
+    margin-top: auto;
+    color: var(--muted);
+    font-size: 12px;
+    text-align: center;
+    padding: 16px 0 0;
+    border-top: 1px solid var(--border);
+  }
+  
+  /* Main Content Area */
+  .main {
+    flex: 1;
+    padding: 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    overflow-y: auto;
+    background: var(--bg-2);
+  }
+  
+  .topbar {
+    display: flex;
+    gap: 16px;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    padding: 0 0 16px;
+    border-bottom: 1px solid var(--border);
+  }
+  
+  .view-switch {
+    display: flex;
+    gap: 8px;
+    background: var(--panel);
+    padding: 4px;
+    border-radius: var(--radius);
+    border: 1px solid var(--border);
+  }
+  
+  .view-switch button {
+    background: transparent;
+    border: none;
+    color: var(--text);
+    padding: 10px 18px;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    font-weight: 500;
+  }
+  
+  .view-switch button:hover {
+    background: rgba(255, 255, 255, 0.05);
+  }
+  
+  .view-switch button.active {
+    background: var(--accent);
+    color: white;
+    box-shadow: 0 2px 8px rgba(31, 111, 235, 0.3);
+  }
+  
+  .view-switch button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+  
+  .view-switch button:disabled:hover {
+    background: transparent;
+  }
+  
+  .banner {
+    display: none;
+    background: #0b1a2f;
+    border: 1px solid var(--border);
+    border-left: 4px solid var(--danger);
+    color: #ffb4b4;
+    border-radius: var(--radius);
+    padding: 16px;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    animation: fadeIn 0.5s;
+  }
+  
+  .banner.show {
+    display: flex;
+  }
+  
+  .cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 20px;
+  }
+  
+  .card {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 20px;
+    transition: all 0.3s ease;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  }
+  
+  .card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+  }
+  
+  .card h3 {
+    margin-bottom: 16px;
+    font-size: 18px;
+    color: var(--text);
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 10px;
+  }
+  
+  .muted {
+    color: var(--muted);
+    font-size: 14px;
+  }
+  
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 20px;
+  }
+  
+  .form {
+    display: grid;
+    gap: 16px;
+    grid-template-columns: repeat(2, 1fr);
+  }
+  
+  .form .full {
+    grid-column: 1 / -1;
+  }
+  
+  .form label {
+    font-size: 13px;
+    color: var(--muted);
+    font-weight: 500;
+    display: block;
+    margin-bottom: 6px;
+  }
+  
+  .form input[type="text"], .form textarea {
+    width: 100%;
+    background: #0f1f36;
+    color: var(--text);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 14px;
+    outline: none;
+    transition: all 0.2s;
+    font-size: 14px;
+  }
+  
+  .form input[type="text"]:focus, .form textarea:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 2px rgba(31, 111, 235, 0.2);
+  }
+  
+  textarea {
+    min-height: 100px;
+    resize: vertical;
+    font-family: inherit;
+  }
+  
+  .actions {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+  
+  .actions button {
+    background: var(--accent);
+    color: #fff;
+    border: 0;
+    border-radius: var(--radius);
+    padding: 12px 18px;
+    cursor: pointer;
+    font-weight: 600;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  
+  .actions button:hover {
+    background: var(--accent-2);
+    transform: translateY(-2px);
+  }
+  
+  .actions button.secondary {
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--text);
+  }
+  
+  .actions button.secondary:hover {
+    background: rgba(255, 255, 255, 0.08);
+  }
+  
+  .steps {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+  
+  .step {
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background: #0f1f36;
+    padding: 16px;
+    transition: all 0.3s ease;
+  }
+  
+  .step:hover {
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  }
+  
+  .step-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    cursor: pointer;
+  }
+  
+  .tags {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-top: 8px;
+  }
+  
+  .tag {
+    font-size: 12px;
+    padding: 4px 8px;
+    border-radius: 20px;
+    border: 1px solid var(--border);
+    color: var(--muted);
+    font-weight: 500;
+  }
+  
+  .tag.overdue {
+    border-color: var(--danger);
+    color: #ff9b9b;
+    background: rgba(239, 68, 68, 0.1);
+  }
+  
+  .tag.done {
+    border-color: var(--success);
+    color: #b8f5dc;
+    background: rgba(31, 191, 117, 0.1);
+  }
+  
+  .substeps {
+    margin-top: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+  
+  .substep {
+    border: 1px dashed var(--border);
+    border-radius: var(--radius);
+    padding: 12px;
+    background: #0d1c31;
+    transition: all 0.2s;
+  }
+  
+  .substep:hover {
+    border-style: solid;
+    background: #0f2039;
+  }
+  
+  .inline {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+    flex-wrap: wrap;
+  }
+  
+  .inline input[type="text"] {
+    background: #0f243f;
+    border: 1px solid var(--border);
+    color: var(--text);
+    border-radius: var(--radius);
+    padding: 10px 12px;
+    font-size: 14px;
+  }
+  
+  .inline .small {
+    font-size: 13px;
+    color: var(--muted);
+  }
+  
+  .overdue-text {
+    color: #ff9b9b;
+  }
+  
+  .overdue-border {
+    border-color: var(--danger) !important;
+  }
+  
+  /* Modal */
+  .modal-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.7);
+    display: none;
+    place-items: center;
+    padding: 20px;
+    z-index: 1000;
+    animation: fadeIn 0.3s;
+  }
+  
+  .modal {
+    max-width: 800px;
+    width: 100%;
+    background: #0f1f36;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 24px;
+    box-shadow: var(--shadow);
+    animation: slideIn 0.3s;
+  }
+  
+  .modal-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+    padding-bottom: 16px;
+    border-bottom: 1px solid var(--border);
+  }
+  
+  .modal-head h3 {
+    font-size: 20px;
+    color: var(--text);
+  }
+  
+  .modal-body {
+    max-height: 60vh;
+    overflow: auto;
+    padding-right: 8px;
+  }
+  
+  .list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+  
+  .list .item {
+    background: #0b1a2f;
+    border: 1px solid var(--border);
+    border-left: 4px solid var(--danger);
+    border-radius: var(--radius);
+    padding: 16px;
+    transition: all 0.2s;
+  }
+  
+  .list .item:hover {
+    background: #0c1c32;
+    transform: translateX(4px);
+  }
+  
+  /* Toast notification */
+  .toast {
+    position: fixed;
+    bottom: 24px;
+    right: 24px;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 16px 20px;
+    color: var(--text);
+    box-shadow: var(--shadow);
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    z-index: 1000;
+    transform: translateY(100px);
+    opacity: 0;
+    transition: all 0.3s ease;
+    max-width: 400px;
+  }
+  
+  .toast.show {
+    transform: translateY(0);
+    opacity: 1;
+  }
+  
+  .toast.success {
+    border-left: 4px solid var(--success);
+  }
+  
+  .toast.error {
+    border-left: 4px solid var(--danger);
+  }
+  
+  .toast.info {
+    border-left: 4px solid var(--accent);
+  }
+  
+  .toast-message {
+    flex: 1;
+    font-size: 14px;
+  }
+  
+  .toast-close {
+    background: none;
+    border: none;
+    color: var(--muted);
+    cursor: pointer;
+    font-size: 18px;
+    padding: 0;
+    width: 24px;
+    height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    transition: all 0.2s;
+  }
+  
+  .toast-close:hover {
+    background: rgba(255, 255, 255, 0.1);
+    color: var(--text);
+  }
+  
+  /* Animations */
+  @keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+  
+  @keyframes slideIn {
+    from { transform: translateY(-30px); opacity: 0; }
+    to { transform: translateY(0); opacity: 1; }
+  }
+  
+  @keyframes pulse {
+    0% { transform: scale(1); }
+   50% { transform: scale(1.05); }
+   100% { transform: scale(1); }
+  }
+  
+  /* Responsive Design */
+  @media (max-width: 1100px) {
+    .cards {
+      grid-template-columns: repeat(2, minmax(280px, 1fr));
+    }
+    
+    .grid {
+      grid-template-columns: 1fr;
+    }
+    
+    .form {
+      grid-template-columns: 1fr;
     }
   }
-  </script>
+  
+  @media (max-width: 900px) {
+    .app {
+      flex-direction: column;
+    }
+    
+    .sidebar {
+      width: 100%;
+      height: auto;
+      position: relative;
+      max-height: 40vh;
+    }
+    
+    .main {
+      padding: 20px;
+    }
+    
+    .toolbar {
+      grid-template-columns: 1fr;
+    }
+  }
+  
+  @media (max-width: 600px) {
+    .main {
+      padding: 16px;
+    }
+    
+    .cards {
+      grid-template-columns: 1fr;
+    }
+    
+    .topbar {
+      flex-direction: column;
+      align-items: stretch;
+      gap: 12px;
+    }
+    
+    .view-switch {
+      width: 100%;
+    }
+    
+    .banner {
+      flex-direction: column;
+      text-align: center;
+    }
+    
+    .modal {
+      padding: 16px;
+    }
+    
+    .toast {
+      left: 16px;
+      right: 16px;
+      max-width: none;
+    }
+  }
+  
+  /* Utility Classes */
+  .text-center {
+    text-align: center;
+  }
+  
+  .mb-1 {
+    margin-bottom: 8px;
+  }
+  
+  .mb-2 {
+    margin-bottom: 16px;
+  }
+  
+  .mt-2 {
+    margin-top: 16px;
+  }
+  
+  .pulse {
+    animation: pulse 2s infinite;
+  }
+  
+  /* Loading state */
+  .skeleton {
+    background: linear-gradient(90deg, #0f1f36 0%, #1a2e4d 50%, #0f1f36 100%);
+    background-size: 200% 100%;
+    animation: loading 1.5s infinite;
+    border-radius: var(--radius);
+  }
+  
+  @keyframes loading {
+    0% {
+      background-position: 200% 0;
+    }
+    100% {
+      background-position: -200% 0;
+    }
+  }
+  
+  /* Date validation styling */
+  .date-error {
+    color: var(--danger);
+    font-size: 12px;
+    margin-top: 4px;
+    display: none;
+  }
+  
+  input.invalid {
+    border-color: var(--danger) !important;
+  }
+  
+  input.invalid + .date-error {
+    display: block;
+  }
+</style>
 </head>
 <body>
-  <header>
-    <strong>React Flashcards</strong>
-    <span class="stat">Upload PDF → Extract → Generate → Study</span>
-  </header>
-  <main>
-    <div id="root"></div>
-  </main>
+<div class="app">
+  <aside class="sidebar">
+    <div class="brand">
+      <div class="logo">🏗️</div>
+      <div>Building Project Manager</div>
+    </div>
 
-  <script type="module">
-    import React, { useEffect, useMemo, useRef, useState, useCallback } from "react";
-    import { createRoot } from "react-dom/client";
-    import * as pdfjsLib from "pdfjs-dist";
+    <div class="sidebar-content">
+      <div class="toolbar">
+        <button id="btnNewProject" type="button" title="New Project">
+          <span>＋</span> New Project
+        </button>
+        <button id="btnDashboard" type="button" class="secondary" title="Dashboard">
+          <span>⌂</span> Dashboard
+        </button>
+        <button id="btnExport" type="button" class="secondary" title="Export JSON">
+          <span>⇩</span> Export
+        </button>
+        <input id="importFile" type="file" accept="application/json" style="display:none" />
+        <label for="importFile" class="secondary" style="display: flex; align-items: center; justify-content: center;">
+          <span>⇪</span> Import
+        </label>
+      </div>
 
-    // Configure PDF.js worker via CDN path
-    // pdfjs-dist 4.x requires a worker; point to the CDN worker file.
-    // Version must match the import above.
-    pdfjsLib.GlobalWorkerOptions.workerSrc = "https://esm.sh/pdfjs-dist@4.7.76/build/pdf.worker.mjs";
+      <div class="search-box">
+        <input id="searchInput" type="text" placeholder="Search projects or steps..." />
+        <select id="statusFilter">
+          <option value="all">All Statuses</option>
+          <option value="pending">Pending</option>
+          <option value="done">Completed</option>
+          <option value="overdue">Overdue</option>
+        </select>
+      </div>
 
-    // Utilities
-    function chunkText(text, targetSize = 500) {
-      const sentences = text.split(/(?<=[.?!])\s+/);
-      const chunks = [];
-      let cur = "";
-      for (const s of sentences) {
-        if ((cur + " " + s).length > targetSize && cur) {
-          chunks.push(cur.trim());
-          cur = s;
-        } else {
-          cur = cur ? cur + " " + s : s;
-        }
-      }
-      if (cur) chunks.push(cur.trim());
-      return chunks.filter(c => c.length > 20);
-    }
+      <div class="section-title">Your Projects</div>
+      <div id="projectList" class="project-list"></div>
+    </div>
 
-    function generateQAFromChunk(chunk) {
-      const firstSentence = (chunk.split(/(?<=[.?!])\s+/)[0] || chunk.slice(0, 140)).trim();
-      const question = `What is the key idea: "${firstSentence.slice(0, 140)}"?`;
-      const answer = chunk.trim();
-      return { question, answer };
-    }
+    <div class="footer">
+      Data is stored locally in this browser and can be backed up via Export JSON anytime. <br> Copyright &copy;2025, Anil Kumar VT
+    </div>
+  </aside>
 
-    async function extractPdfText(file) {
-      const buffer = await file.arrayBuffer();
-      const pdf = await pdfjsLib.getDocument({ data: buffer }).promise;
-      const pages = [];
-      for (let i = 1; i <= pdf.numPages; i++) {
-        const page = await pdf.getPage(i);
-        const content = await page.getTextContent();
-        const text = content.items.map(it => it.str).join(" ");
-        pages.push(text);
-      }
-      return { pages };
-    }
+  <main class="main">
+    <div class="topbar">
+      <div class="view-switch">
+        <button id="viewDashboard" type="button" class="active">Dashboard</button>
+        <button id="viewProject" type="button">Project Details</button>
+      </div>
+      <div id="overdueBanner" class="banner">
+        <div><strong>Overdue</strong> items detected across projects.</div>
+        <div class="actions">
+          <button id="btnViewOverdue" type="button" class="secondary">View list</button>
+          <button id="btnDismissOverdue" type="button" class="secondary">Dismiss</button>
+        </div>
+      </div>
+    </div>
 
-    // Flashcard component
-    function Flashcard({ q, a }) {
-      const [flip, setFlip] = useState(false);
-      return (
-        <div className="card perspective" onClick={() => setFlip(v => !v)} role="button" aria-pressed={flip}>
-          <div className={"flip preserve-3d " + (flip ? "rotate-y-180" : "")}>
-            <div className="front backface-hidden">
-              <div className="muted mono">Q</div>
-              <div style={{marginTop: 6}}>{q}</div>
+    <section id="dashboardView">
+      <div class="cards" id="dashboardCards"></div>
+    </section>
+
+    <section id="projectView" style="display:none">
+      <div class="card">
+        <h3>Project Details</h3>
+        <div class="form">
+          <div>
+            <label>Project Name</label>
+            <input id="projName" type="text" placeholder="Required" />
+          </div>
+          <div>
+            <label>Start Date (DD-MM-YYYY)</label>
+            <div class="inline">
+              <input id="projStart" type="text" placeholder="DD-MM-YYYY" pattern="\d{2}-\d{2}-\d{4}" title="DD-MM-YYYY" />
+              <button id="btnSetStartToday" type="button" class="secondary">Today</button>
             </div>
-            <div className="back backface-hidden">
-              <div className="muted mono">A</div>
-              <div style={{marginTop: 6, whiteSpace: "pre-wrap"}}>{a}</div>
+            <div class="date-error">Please enter a valid date in DD-MM-YYYY format</div>
+          </div>
+          <div>
+            <label>Due Date (DD-MM-YYYY)</label>
+            <div class="inline">
+              <input id="projDue" type="text" placeholder="DD-MM-YYYY" pattern="\d{2}-\d{2}-\d{4}" title="DD-MM-YYYY" />
+              <button id="btnSetDueToday" type="button" class="secondary">Today</button>
+            </div>
+            <div class="date-error">Please enter a valid date in DD-MM-YYYY format</div>
+          </div>
+          <div class="full">
+            <label>Description</label>
+            <textarea id="projDesc" placeholder="Optional"></textarea>
+          </div>
+        </div>
+        <div class="actions" style="margin-top:16px">
+          <button id="btnSaveProject" type="button">Save Project</button>
+          <button id="btnDeleteProject" type="button" class="secondary">Delete Project</button>
+        </div>
+      </div>
+
+      <div class="grid">
+        <div class="card">
+          <h3>Add Major Step</h3>
+          <div class="form">
+            <div class="full">
+              <label>Step name</label>
+              <input id="stepName" type="text" placeholder="e.g., Foundation Work" />
+            </div>
+            <div class="full">
+              <label>Due (DD-MM-YYYY)</label>
+              <div class="inline">
+                <input id="stepDue" type="text" placeholder="DD-MM-YYYY" pattern="\d{2}-\d{2}-\d{4}" title="DD-MM-YYYY" />
+                <button id="btnStepDueToday" type="button" class="secondary">Today</button>
+              </div>
+              <div class="date-error">Please enter a valid date in DD-MM-YYYY format</div>
+            </div>
+            <div class="full actions">
+              <button id="btnAddStep" type="button">Add Step</button>
             </div>
           </div>
         </div>
-      );
-    }
 
-    function App() {
-      const [file, setFile] = useState(null);
-      const [extracting, setExtracting] = useState(false);
-      const [pages, setPages] = useState([]);
-      const [size, setSize] = useState(500);
-      const [chunks, setChunks] = useState([]);
-      const [cards, setCards] = useState([]);
-      const [i, setI] = useState(0);
-
-      const textPreview = useMemo(() => pages.slice(0, 2).join("\n\n"), [pages]);
-      const chunkPreview = useMemo(() => chunks.slice(0, 5).join("\n\n---\n\n"), [chunks]);
-
-      async function onExtract() {
-        if (!file) return;
-        setExtracting(true);
-        try {
-          const { pages } = await extractPdfText(file);
-          setPages(pages);
-          const all = pages.join("\n\n");
-          setChunks(chunkText(all, size));
-        } finally {
-          setExtracting(false);
-        }
-      }
-
-      function onGenerate() {
-        const gen = chunks.map(c => generateQAFromChunk(c));
-        setCards(gen);
-        setI(0);
-      }
-
-      const next = useCallback(() => setI(x => Math.min(x + 1, Math.max(0, cards.length - 1))), [cards.length]);
-      const prev = useCallback(() => setI(x => Math.max(x - 1, 0)), []);
-      useEffect(() => {
-        function onKey(e) {
-          if (e.key === "ArrowRight") next();
-          if (e.key === "ArrowLeft") prev();
-        }
-        window.addEventListener("keydown", onKey);
-        return () => window.removeEventListener("keydown", onKey);
-      }, [next, prev]);
-
-      const current = cards[i];
-
-      return (
-        <div>
-          <section className="grid grid-2">
-            <div>
-              <h2>1) Upload PDF</h2>
-              <input type="file" accept="application/pdf" onChange={e => setFile(e.target.files?.[0] || null)} />
-              <div className="row" style={{marginTop: 10}}>
-                <label>Chunk size</label>
-                <input type="range" min="200" max="1200" step="50" value={size}
-                       onChange={e => setSize(parseInt(e.target.value))}/>
-                <span className="mono">{size} chars</span>
-                <button className="btn" onClick={onExtract} disabled={!file || extracting}>
-                  {extracting ? "Extracting..." : "Extract"}
-                </button>
-              </div>
-              <div style={{marginTop: 10}}>
-                <div className="muted">Extracted text preview</div>
-                <textarea readOnly value={textPreview}></textarea>
-              </div>
+        <div class="card">
+          <h3>Add Sub-step</h3>
+          <div class="form">
+            <div class="full">
+              <label>Parent step</label>
+              <select id="parentStep"></select>
             </div>
-
-            <div>
-              <h2>2) Chunks → Cards</h2>
-              <div className="muted">Chunks preview</div>
-              <textarea readOnly value={chunkPreview}></textarea>
-              <div className="row" style={{marginTop: 8}}>
-                <button className="btn btn-primary" onClick={onGenerate} disabled={!chunks.length}>Generate Cards</button>
-                <span className="stat">Chunks: {chunks.length}</span>
-                <span className="stat">Cards: {cards.length}</span>
-              </div>
+            <div class="full">
+              <label>Sub-step name</label>
+              <input id="subName" type="text" placeholder="e.g., Site Preparation" />
             </div>
-          </section>
-
-          <section style={{marginTop: 20}}>
-            <h2>3) Study</h2>
-            {!cards.length && <div className="muted">No cards yet. Generate from chunks.</div>}
-            {!!cards.length && (
-              <div>
-                <div className="row">
-                  <span className="stat">Card {i + 1} / {cards.length}</span>
-                  <button className="btn" onClick={prev}>Prev</button>
-                  <button className="btn" onClick={next}>Next</button>
-                </div>
-                <div className="cards" style={{marginTop: 12}}>
-                  <Flashcard q={current?.question || ""} a={current?.answer || ""} />
-                </div>
+            <div class="full">
+              <label>Due (DD-MM-YYYY)</label>
+              <div class="inline">
+                <input id="subDue" type="text" placeholder="DD-MM-YYYY" pattern="\d{2}-\d{2}-\d{4}" title="DD-MM-YYYY" />
+                <button id="btnSubDueToday" type="button" class="secondary">Today</button>
               </div>
-            )}
-          </section>
+              <div class="date-error">Please enter a valid date in DD-MM-YYYY format</div>
+            </div>
+            <div class="full actions">
+              <button id="btnAddSub" type="button">Add Sub-step</button>
+            </div>
+          </div>
         </div>
-      );
-    }
+      </div>
 
-    const root = createRoot(document.getElementById("root"));
-    root.render(<App />);
-  </script>
+      <div class="card">
+        <h3>Project Steps</h3>
+        <div id="steps" class="steps"></div>
+      </div>
+    </section>
+  </main>
+</div>
+
+<!-- Overdue modal -->
+<div id="modalBackdrop" class="modal-backdrop">
+  <div class="modal">
+    <div class="modal-head">
+      <h3>Overdue Items</h3>
+      <button id="modalClose" type="button" class="secondary">Close</button>
+    </div>
+    <div class="modal-body">
+      <div id="overdueList" class="list"></div>
+    </div>
+  </div>
+</div>
+
+<!-- Toast notification -->
+<div id="toast" class="toast">
+  <span id="toastMessage" class="toast-message"></span>
+  <button id="toastClose" type="button" class="toast-close">✕</button>
+</div>
+
+<script>
+// Data structure and state management
+let projects = JSON.parse(localStorage.getItem('buildingProjects')) || [];
+let currentProjectId = null;
+let currentView = 'dashboard';
+
+// DOM Elements
+const domElements = {
+  projectList: document.getElementById('projectList'),
+  searchInput: document.getElementById('searchInput'),
+  statusFilter: document.getElementById('statusFilter'),
+  dashboardView: document.getElementById('dashboardView'),
+  projectView: document.getElementById('projectView'),
+  dashboardCards: document.getElementById('dashboardCards'),
+  viewDashboard: document.getElementById('viewDashboard'),
+  viewProject: document.getElementById('viewProject'),
+  projName: document.getElementById('projName'),
+  projStart: document.getElementById('projStart'),
+  projDue: document.getElementById('projDue'),
+  projDesc: document.getElementById('projDesc'),
+  btnSaveProject: document.getElementById('btnSaveProject'),
+  btnDeleteProject: document.getElementById('btnDeleteProject'),
+  btnNewProject: document.getElementById('btnNewProject'),
+  btnDashboard: document.getElementById('btnDashboard'),
+  btnExport: document.getElementById('btnExport'),
+  importFile: document.getElementById('importFile'),
+  stepName: document.getElementById('stepName'),
+  stepDue: document.getElementById('stepDue'),
+  btnAddStep: document.getElementById('btnAddStep'),
+  parentStep: document.getElementById('parentStep'),
+  subName: document.getElementById('subName'),
+  subDue: document.getElementById('subDue'),
+  btnAddSub: document.getElementById('btnAddSub'),
+  steps: document.getElementById('steps'),
+  overdueBanner: document.getElementById('overdueBanner'),
+  btnViewOverdue: document.getElementById('btnViewOverdue'),
+  btnDismissOverdue: document.getElementById('btnDismissOverdue'),
+  modalBackdrop: document.getElementById('modalBackdrop'),
+  overdueList: document.getElementById('overdueList'),
+  modalClose: document.getElementById('modalClose'),
+  toast: document.getElementById('toast'),
+  toastMessage: document.getElementById('toastMessage'),
+  toastClose: document.getElementById('toastClose'),
+  btnSetStartToday: document.getElementById('btnSetStartToday'),
+  btnSetDueToday: document.getElementById('btnSetDueToday'),
+  btnStepDueToday: document.getElementById('btnStepDueToday'),
+  btnSubDueToday: document.getElementById('btnSubDueToday')
+};
+
+// Utility Functions
+function generateId() {
+  return Date.now().toString(36) + Math.random().toString(36).substr(2);
+}
+
+function parseDate(dateString) {
+  if (!dateString) return null;
+  
+  // Validate DD-MM-YYYY format
+  const datePattern = /^(\d{2})-(\d{2})-(\d{4})$/;
+  const match = dateString.match(datePattern);
+  
+  if (!match) return null;
+  
+  const day = parseInt(match[1], 10);
+  const month = parseInt(match[2], 10) - 1; // Months are 0-indexed in JavaScript
+  const year = parseInt(match[3], 10);
+  
+  // Validate date values
+  const date = new Date(year, month, day);
+  if (isNaN(date.getTime())) return null;
+  
+  // Check if the parsed date matches the input values (to catch invalid dates like 31-02-2023)
+  if (date.getDate() !== day || date.getMonth() !== month || date.getFullYear() !== year) {
+    return null;
+  }
+  
+  return date;
+}
+
+function formatDate(date) {
+  if (!date) return '';
+  const day = String(date.getDate()).padStart(2, '0');
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const year = date.getFullYear();
+  return `${day}-${month}-${year}`;
+}
+
+function isValidDate(dateString) {
+  return parseDate(dateString) !== null;
+}
+
+function isOverdue(dateString) {
+  if (!dateString) return false;
+  
+  const date = parseDate(dateString);
+  if (!date) return false;
+  
+  // Create today's date without time component for accurate comparison
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  
+  // Compare dates (items are only overdue if they are before today)
+  return date < today;
+}
+
+function isSameDay(date1, date2) {
+  if (!date1 || !date2) return false;
+  return date1.getDate() === date2.getDate() &&
+         date1.getMonth() === date2.getMonth() &&
+         date1.getFullYear() === date2.getFullYear();
+}
+
+function showToast(message, type = 'info') {
+  domElements.toastMessage.textContent = message;
+  domElements.toast.className = `toast ${type}`;
+  domElements.toast.classList.add('show');
+  
+  setTimeout(() => {
+    domElements.toast.classList.remove('show');
+  }, 3000);
+}
+
+function validateDateInput(inputElement) {
+  const value = inputElement.value.trim();
+  if (!value) {
+    inputElement.classList.remove('invalid');
+    return true; // Empty is valid
+  }
+  
+  if (!isValidDate(value)) {
+    inputElement.classList.add('invalid');
+    return false;
+  }
+  
+  inputElement.classList.remove('invalid');
+  return true;
+}
+
+// Data Management
+function saveProjects() {
+  localStorage.setItem('buildingProjects', JSON.stringify(projects));
+}
+
+function createProject(name, startDate, dueDate, description) {
+  // Validate dates
+  if (startDate && !isValidDate(startDate)) {
+    showToast('Invalid start date format. Use DD-MM-YYYY', 'error');
+    return null;
+  }
+  
+  if (dueDate && !isValidDate(dueDate)) {
+    showToast('Invalid due date format. Use DD-MM-YYYY', 'error');
+    return null;
+  }
+  
+  const project = {
+    id: generateId(),
+    name,
+    startDate,
+    dueDate,
+    description,
+    steps: [],
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString()
+  };
+  
+  projects.push(project);
+  saveProjects();
+  return project;
+}
+
+function updateProject(id, updates) {
+  const projectIndex = projects.findIndex(p => p.id === id);
+  if (projectIndex === -1) return null;
+  
+  // Validate dates
+  if (updates.startDate && !isValidDate(updates.startDate)) {
+    showToast('Invalid start date format. Use DD-MM-YYYY', 'error');
+    return null;
+  }
+  
+  if (updates.dueDate && !isValidDate(updates.dueDate)) {
+    showToast('Invalid due date format. Use DD-MM-YYYY', 'error');
+    return null;
+  }
+  
+  projects[projectIndex] = {
+    ...projects[projectIndex],
+    ...updates,
+    updatedAt: new Date().toISOString()
+  };
+  
+  saveProjects();
+  return projects[projectIndex];
+}
+
+function deleteProject(id) {
+  projects = projects.filter(p => p.id !== id);
+  saveProjects();
+}
+
+function addStep(projectId, name, dueDate) {
+  const project = projects.find(p => p.id === projectId);
+  if (!project) return null;
+  
+  // Validate date
+  if (dueDate && !isValidDate(dueDate)) {
+    showToast('Invalid due date format. Use DD-MM-YYYY', 'error');
+    return null;
+  }
+  
+  const step = {
+    id: generateId(),
+    name,
+    dueDate,
+    completed: false,
+    subSteps: []
+  };
+  
+  project.steps.push(step);
+  project.updatedAt = new Date().toISOString();
+  saveProjects();
+  return step;
+}
+
+function addSubStep(projectId, stepId, name, dueDate) {
+  const project = projects.find(p => p.id === projectId);
+  if (!project) return null;
+  
+  const step = project.steps.find(s => s.id === stepId);
+  if (!step) return null;
+  
+  // Validate date
+  if (dueDate && !isValidDate(dueDate)) {
+    showToast('Invalid due date format. Use DD-MM-YYYY', 'error');
+    return null;
+  }
+  
+  const subStep = {
+    id: generateId(),
+    name,
+    dueDate,
+    completed: false
+  };
+  
+  step.subSteps.push(subStep);
+  project.updatedAt = new Date().toISOString();
+  saveProjects();
+  return subStep;
+}
+
+function toggleStepCompletion(projectId, stepId) {
+  const project = projects.find(p => p.id === projectId);
+  if (!project) return null;
+  
+  const step = project.steps.find(s => s.id === stepId);
+  if (!step) return null;
+  
+  step.completed = !step.completed;
+  
+  // If a step is marked as completed, mark all its substeps as completed too
+  if (step.completed) {
+    step.subSteps.forEach(sub => sub.completed = true);
+  }
+  
+  project.updatedAt = new Date().toISOString();
+  saveProjects();
+  return step;
+}
+
+function toggleSubStepCompletion(projectId, stepId, subStepId) {
+  const project = projects.find(p => p.id === projectId);
+  if (!project) return null;
+  
+  const step = project.steps.find(s => s.id === stepId);
+  if (!step) return null;
+  
+  const subStep = step.subSteps.find(s => s.id === subStepId);
+  if (!subStep) return null;
+  
+  subStep.completed = !subStep.completed;
+  
+  // If all substeps are completed, mark the step as completed
+  if (step.subSteps.every(s => s.completed)) {
+    step.completed = true;
+  } else {
+    step.completed = false;
+  }
+  
+  project.updatedAt = new Date().toISOString();
+  saveProjects();
+  return subStep;
+}
+
+function deleteStep(projectId, stepId) {
+  const project = projects.find(p => p.id === projectId);
+  if (!project) return null;
+  
+  project.steps = project.steps.filter(s => s.id !== stepId);
+  project.updatedAt = new Date().toISOString();
+  saveProjects();
+  return project;
+}
+
+function deleteSubStep(projectId, stepId, subStepId) {
+  const project = projects.find(p => p.id === projectId);
+  if (!project) return null;
+  
+  const step = project.steps.find(s => s.id === stepId);
+  if (!step) return null;
+  
+  step.subSteps = step.subSteps.filter(s => s.id !== subStepId);
+  project.updatedAt = new Date().toISOString();
+  saveProjects();
+  return step;
+}
+
+function getProjectProgress(project) {
+  if (!project.steps.length) return 0;
+  
+  let totalItems = 0;
+  let completedItems = 0;
+  
+  project.steps.forEach(step => {
+    totalItems += 1 + step.subSteps.length;
+    if (step.completed) completedItems += 1 + step.subSteps.length;
+    else {
+      completedItems += step.subSteps.filter(s => s.completed).length;
+    }
+  });
+  
+  return Math.round((completedItems / totalItems) * 100);
+}
+
+function getOverdueItems() {
+  const overdueItems = [];
+  
+  projects.forEach(project => {
+    // Check project due date - only if project is not complete
+    if (isOverdue(project.dueDate) && getProjectProgress(project) < 100) {
+      overdueItems.push({
+        type: 'project',
+        name: project.name,
+        dueDate: project.dueDate,
+        projectId: project.id
+      });
+    }
+    
+    // Check steps
+    project.steps.forEach(step => {
+      if (isOverdue(step.dueDate) && !step.completed) {
+        overdueItems.push({
+          type: 'step',
+          name: step.name,
+          dueDate: step.dueDate,
+          projectId: project.id,
+          projectName: project.name
+        });
+      }
+      
+      // Check substeps
+      step.subSteps.forEach(subStep => {
+        if (isOverdue(subStep.dueDate) && !subStep.completed) {
+          overdueItems.push({
+            type: 'substep',
+            name: subStep.name,
+            dueDate: subStep.dueDate,
+            stepName: step.name,
+            projectId: project.id,
+            projectName: project.name
+          });
+        }
+      });
+    });
+  });
+  
+  return overdueItems;
+}
+
+// UI Rendering
+function renderProjectList() {
+  const searchTerm = domElements.searchInput.value.toLowerCase();
+  const statusFilter = domElements.statusFilter.value;
+  
+  let filteredProjects = projects;
+  
+  // Apply search filter
+  if (searchTerm) {
+    filteredProjects = filteredProjects.filter(project => 
+      project.name.toLowerCase().includes(searchTerm) ||
+      (project.description && project.description.toLowerCase().includes(searchTerm)) ||
+      project.steps.some(step => 
+        step.name.toLowerCase().includes(searchTerm) ||
+        step.subSteps.some(sub => sub.name.toLowerCase().includes(searchTerm))
+      )
+    );
+  }
+  
+  // Apply status filter
+  if (statusFilter !== 'all') {
+    filteredProjects = filteredProjects.filter(project => {
+      const progress = getProjectProgress(project);
+      
+      if (statusFilter === 'done') return progress === 100;
+      if (statusFilter === 'pending') return progress < 100;
+      if (statusFilter === 'overdue') {
+        return isOverdue(project.dueDate) && progress < 100 || 
+               project.steps.some(step => 
+                 isOverdue(step.dueDate) && !step.completed
+               ) ||
+               project.steps.some(step => 
+                 step.subSteps.some(sub => 
+                   isOverdue(sub.dueDate) && !sub.completed
+                 )
+               );
+      }
+      return true;
+    });
+  }
+  
+  // Render projects
+  domElements.projectList.innerHTML = '';
+  
+  if (filteredProjects.length === 0) {
+    domElements.projectList.innerHTML = `
+      <div class="text-center muted" style="padding: 20px;">
+        No projects found. Create a new project to get started.
+      </div>
+    `;
+    return;
+  }
+  
+  filteredProjects.forEach(project => {
+    const progress = getProjectProgress(project);
+    const isOverdueProject = isOverdue(project.dueDate) && progress < 100;
+    
+    const projectEl = document.createElement('div');
+    projectEl.className = `project-item ${currentProjectId === project.id ? 'active' : ''}`;
+    projectEl.innerHTML = `
+      <div style="display: flex; justify-content: space-between; align-items: center;">
+        <strong>${project.name}</strong>
+        ${isOverdueProject ? '<span class="tag overdue">Overdue</span>' : ''}
+        ${progress === 100 ? '<span class="tag done">Completed</span>' : ''}
+      </div>
+      <div class="project-meta">
+        Start: ${project.startDate || 'Not set'} | Due: ${project.dueDate || 'Not set'}
+      </div>
+      <div class="progress">
+        <span style="width: ${progress}%"></span>
+      </div>
+      <div class="project-meta">
+        Progress: ${progress}% complete
+      </div>
+    `;
+    
+    projectEl.addEventListener('click', () => {
+      loadProject(project.id);
+      switchView('project');
+    });
+    
+    domElements.projectList.appendChild(projectEl);
+  });
+}
+
+function renderDashboard() {
+  const totalProjects = projects.length;
+  const completedProjects = projects.filter(p => getProjectProgress(p) === 100).length;
+  const overdueItems = getOverdueItems();
+  
+  domElements.dashboardCards.innerHTML = `
+    <div class="card">
+      <h3>Projects Overview</h3>
+      <div style="font-size: 48px; font-weight: bold; text-align: center; margin: 20px 0;">
+        ${totalProjects}
+      </div>
+      <div class="text-center muted">Total Projects</div>
+    </div>
+    
+    <div class="card">
+      <h3>Completed</h3>
+      <div style="font-size: 48px; font-weight: bold; text-align: center; margin: 20px 0; color: var(--success)">
+        ${completedProjects}
+      </div>
+      <div class="text-center muted">Projects Completed</div>
+    </div>
+    
+    <div class="card">
+      <h3>In Progress</h3>
+      <div style="font-size: 48px; font-weight: bold; text-align: center; margin: 20px 0; color: var(--accent)">
+        ${totalProjects - completedProjects}
+      </div>
+      <div class="text-center muted">Active Projects</div>
+    </div>
+    
+    <div class="card">
+      <h3>Overdue Items</h3>
+      <div style="font-size: 48px; font-weight: bold; text-align: center; margin: 20px 0; color: var(--danger)">
+        ${overdueItems.length}
+      </div>
+      <div class="text-center muted">Need Attention</div>
+    </div>
+  `;
+  
+  // Show/hide overdue banner
+  if (overdueItems.length > 0) {
+    domElements.overdueBanner.classList.add('show');
+  } else {
+    domElements.overdueBanner.classList.remove('show');
+  }
+}
+
+function renderProjectView() {
+  const project = projects.find(p => p.id === currentProjectId);
+  if (!project) return;
+  
+  // Update form fields
+  domElements.projName.value = project.name || '';
+  domElements.projStart.value = project.startDate || '';
+  domElements.projDue.value = project.dueDate || '';
+  domElements.projDesc.value = project.description || '';
+  
+  // Validate date fields
+  validateDateInput(domElements.projStart);
+  validateDateInput(domElements.projDue);
+  
+  // Render steps
+  renderSteps();
+  
+  // Update parent step dropdown
+  updateParentStepDropdown();
+  
+  // Enable project view button since we have a project selected
+  domElements.viewProject.disabled = false;
+}
+
+function renderSteps() {
+  const project = projects.find(p => p.id === currentProjectId);
+  if (!project) return;
+  
+  domElements.steps.innerHTML = '';
+  
+  if (project.steps.length === 0) {
+    domElements.steps.innerHTML = `
+      <div class="text-center muted" style="padding: 20px;">
+        No steps added yet. Use the form above to add major steps to your project.
+      </div>
+    `;
+    return;
+  }
+  
+  project.steps.forEach(step => {
+    const stepEl = document.createElement('div');
+    stepEl.className = `step ${isOverdue(step.dueDate) && !step.completed ? 'overdue-border' : ''}`;
+    
+    const stepProgress = step.subSteps.length ? 
+      Math.round((step.subSteps.filter(s => s.completed).length / step.subSteps.length) * 100) : 
+      (step.completed ? 100 : 0);
+    
+    stepEl.innerHTML = `
+      <div class="step-head">
+        <div style="display: flex; align-items: center; gap: 12px;">
+          <input type="checkbox" ${step.completed ? 'checked' : ''} 
+                 id="step-${step.id}" class="step-checkbox" />
+          <label for="step-${step.id}" style="font-weight: bold;">${step.name}</label>
+        </div>
+        <div style="display: flex; align-items: center; gap: 8px;">
+          ${step.dueDate ? `<span class="muted">Due: ${step.dueDate}</span>` : ''}
+          <button class="secondary delete-step" data-step-id="${step.id}">Delete</button>
+        </div>
+      </div>
+      
+      ${step.dueDate && isOverdue(step.dueDate) && !step.completed ? `
+        <div class="tags">
+          <span class="tag overdue">Overdue</span>
+        </div>
+      ` : ''}
+      
+      ${step.subSteps.length > 0 ? `
+        <div class="progress" style="margin: 12px 0 8px;">
+          <span style="width: ${stepProgress}%"></span>
+        </div>
+      ` : ''}
+      
+      <div class="substeps">
+        ${step.subSteps.map(subStep => `
+          <div class="substep ${isOverdue(subStep.dueDate) && !subStep.completed ? 'overdue-border' : ''}">
+            <div style="display: flex; align-items: center; gap: 12px;">
+              <input type="checkbox" ${subStep.completed ? 'checked' : ''} 
+                     id="substep-${subStep.id}" class="substep-checkbox" 
+                     data-step-id="${step.id}" />
+              <label for="substep-${subStep.id}">${subStep.name}</label>
+            </div>
+            <div style="display: flex; align-items: center; gap: 8px; margin-top: 8px;">
+              ${subStep.dueDate ? `<span class="muted small">Due: ${subStep.dueDate}</span>` : ''}
+              <button class="secondary delete-substep" data-step-id="${step.id}" data-substep-id="${subStep.id}">Delete</button>
+            </div>
+          </div>
+        `).join('')}
+      </div>
+    `;
+    
+    domElements.steps.appendChild(stepEl);
+  });
+  
+  // Add event listeners for checkboxes and delete buttons
+  document.querySelectorAll('.step-checkbox').forEach(checkbox => {
+    checkbox.addEventListener('change', (e) => {
+      const stepId = e.target.id.replace('step-', '');
+      toggleStepCompletion(currentProjectId, stepId);
+      renderSteps();
+      renderProjectList();
+    });
+  });
+  
+  document.querySelectorAll('.substep-checkbox').forEach(checkbox => {
+    checkbox.addEventListener('change', (e) => {
+      const subStepId = e.target.id.replace('substep-', '');
+      const stepId = e.target.dataset.stepId;
+      toggleSubStepCompletion(currentProjectId, stepId, subStepId);
+      renderSteps();
+      renderProjectList();
+    });
+  });
+  
+  document.querySelectorAll('.delete-step').forEach(button => {
+    button.addEventListener('click', (e) => {
+      const stepId = e.target.dataset.stepId;
+      if (confirm('Are you sure you want to delete this step and all its substeps?')) {
+        deleteStep(currentProjectId, stepId);
+        renderSteps();
+        renderProjectList();
+        updateParentStepDropdown();
+        showToast('Step deleted', 'info');
+      }
+    });
+  });
+  
+  document.querySelectorAll('.delete-substep').forEach(button => {
+    button.addEventListener('click', (e) => {
+      const stepId = e.target.dataset.stepId;
+      const subStepId = e.target.dataset.substepId;
+      if (confirm('Are you sure you want to delete this substep?')) {
+        deleteSubStep(currentProjectId, stepId, subStepId);
+        renderSteps();
+        renderProjectList();
+        updateParentStepDropdown();
+        showToast('Substep deleted', 'info');
+      }
+    });
+  });
+}
+
+function updateParentStepDropdown() {
+  const project = projects.find(p => p.id === currentProjectId);
+  if (!project) return;
+  
+  domElements.parentStep.innerHTML = '';
+  
+  if (project.steps.length === 0) {
+    domElements.parentStep.innerHTML = '<option value="">No steps available</option>';
+    return;
+  }
+  
+  project.steps.forEach(step => {
+    const option = document.createElement('option');
+    option.value = step.id;
+    option.textContent = step.name;
+    domElements.parentStep.appendChild(option);
+  });
+}
+
+function renderOverdueModal() {
+  const overdueItems = getOverdueItems();
+  domElements.overdueList.innerHTML = '';
+  
+  if (overdueItems.length === 0) {
+    domElements.overdueList.innerHTML = `
+      <div class="text-center muted" style="padding: 20px;">
+        No overdue items. Great job!
+      </div>
+    `;
+    return;
+  }
+  
+  overdueItems.forEach(item => {
+    const itemEl = document.createElement('div');
+    itemEl.className = 'item';
+    
+    let content = '';
+    if (item.type === 'project') {
+      content = `
+        <strong>Project: ${item.name}</strong>
+        <div class="muted">Due: ${item.dueDate}</div>
+      `;
+    } else if (item.type === 'step') {
+      content = `
+        <strong>Step: ${item.name}</strong>
+        <div class="muted">Project: ${item.projectName} | Due: ${item.dueDate}</div>
+      `;
+    } else if (item.type === 'substep') {
+      content = `
+        <strong>Substep: ${item.name}</strong>
+        <div class="muted">Step: ${item.stepName} | Project: ${item.projectName} | Due: ${item.dueDate}</div>
+      `;
+    }
+    
+    itemEl.innerHTML = content;
+    itemEl.addEventListener('click', () => {
+      if (item.projectId) {
+        loadProject(item.projectId);
+        switchView('project');
+      }
+      domElements.modalBackdrop.style.display = 'none';
+    });
+    
+    domElements.overdueList.appendChild(itemEl);
+  });
+}
+
+// View Management
+function switchView(view) {
+  currentView = view;
+  
+  if (view === 'dashboard') {
+    domElements.viewDashboard.classList.add('active');
+    domElements.viewProject.classList.remove('active');
+    domElements.dashboardView.style.display = 'block';
+    domElements.projectView.style.display = 'none';
+    renderDashboard();
+  } else if (view === 'project') {
+    if (!currentProjectId) {
+      showToast('Please select or create a project first', 'error');
+      return;
+    }
+    
+    domElements.viewDashboard.classList.remove('active');
+    domElements.viewProject.classList.add('active');
+    domElements.dashboardView.style.display = 'none';
+    domElements.projectView.style.display = 'block';
+    renderProjectView();
+  }
+}
+
+function loadProject(projectId) {
+  currentProjectId = projectId;
+  domElements.viewProject.disabled = false;
+  renderProjectList(); // Update active project highlight
+}
+
+function createNewProject() {
+  const newProject = createProject('New Project', '', '', '');
+  if (newProject) {
+    loadProject(newProject.id);
+    switchView('project');
+    showToast('New project created', 'success');
+  }
+}
+
+// Export/Import
+function exportData() {
+  const dataStr = JSON.stringify(projects, null, 2);
+  const dataUri = 'data:application/json;charset=utf-8,'+ encodeURIComponent(dataStr);
+  
+  const exportFileDefaultName = 'building-projects.json';
+  
+  const linkElement = document.createElement('a');
+  linkElement.setAttribute('href', dataUri);
+  linkElement.setAttribute('download', exportFileDefaultName);
+  linkElement.click();
+  
+  showToast('Data exported successfully', 'success');
+}
+
+function importData(file) {
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    try {
+      const importedData = JSON.parse(e.target.result);
+      
+      if (Array.isArray(importedData)) {
+        projects = importedData;
+        saveProjects();
+        renderProjectList();
+        renderDashboard();
+        showToast('Data imported successfully', 'success');
+      } else {
+        showToast('Invalid file format', 'error');
+      }
+    } catch (error) {
+      showToast('Error parsing JSON file', 'error');
+      console.error('Import error:', error);
+    }
+  };
+  reader.readAsText(file);
+}
+
+// Event Listeners
+function setupEventListeners() {
+  // View switching
+  domElements.viewDashboard.addEventListener('click', () => switchView('dashboard'));
+  domElements.viewProject.addEventListener('click', () => switchView('project'));
+  
+  // Project actions
+  domElements.btnNewProject.addEventListener('click', createNewProject);
+  domElements.btnDashboard.addEventListener('click', () => switchView('dashboard'));
+  
+  domElements.btnSaveProject.addEventListener('click', () => {
+    if (!currentProjectId) return;
+    
+    const name = domElements.projName.value.trim();
+    if (!name) {
+      showToast('Project name is required', 'error');
+      return;
+    }
+    
+    // Validate dates
+    if (!validateDateInput(domElements.projStart) || !validateDateInput(domElements.projDue)) {
+      showToast('Please fix date validation errors', 'error');
+      return;
+    }
+    
+    updateProject(currentProjectId, {
+      name,
+      startDate: domElements.projStart.value.trim(),
+      dueDate: domElements.projDue.value.trim(),
+      description: domElements.projDesc.value.trim()
+    });
+    
+    renderProjectList();
+    showToast('Project saved', 'success');
+  });
+  
+  domElements.btnDeleteProject.addEventListener('click', () => {
+    if (!currentProjectId) return;
+    
+    if (confirm('Are you sure you want to delete this project? This action cannot be undone.')) {
+      deleteProject(currentProjectId);
+      currentProjectId = null;
+      domElements.viewProject.disabled = true;
+      switchView('dashboard');
+      showToast('Project deleted', 'info');
+    }
+  });
+  
+  // Step actions
+  domElements.btnAddStep.addEventListener('click', () => {
+    if (!currentProjectId) {
+      showToast('Please select or create a project first', 'error');
+      return;
+    }
+    
+    const name = domElements.stepName.value.trim();
+    if (!name) {
+      showToast('Step name is required', 'error');
+      return;
+    }
+    
+    // Validate date
+    if (!validateDateInput(domElements.stepDue)) {
+      showToast('Please fix date validation errors', 'error');
+      return;
+    }
+    
+    addStep(currentProjectId, name, domElements.stepDue.value.trim());
+    
+    domElements.stepName.value = '';
+    domElements.stepDue.value = '';
+    
+    renderSteps();
+    updateParentStepDropdown();
+    renderProjectList();
+    showToast('Step added', 'success');
+  });
+  
+  domElements.btnAddSub.addEventListener('click', () => {
+    if (!currentProjectId) {
+      showToast('Please select or create a project first', 'error');
+      return;
+    }
+    
+    const parentStepId = domElements.parentStep.value;
+    if (!parentStepId) {
+      showToast('Please select a parent step', 'error');
+      return;
+    }
+    
+    const name = domElements.subName.value.trim();
+    if (!name) {
+      showToast('Substep name is required', 'error');
+      return;
+    }
+    
+    // Validate date
+    if (!validateDateInput(domElements.subDue)) {
+      showToast('Please fix date validation errors', 'error');
+      return;
+    }
+    
+    addSubStep(currentProjectId, parentStepId, name, domElements.subDue.value.trim());
+    
+    domElements.subName.value = '';
+    domElements.subDue.value = '';
+    
+    renderSteps();
+    renderProjectList();
+    showToast('Substep added', 'success');
+  });
+  
+  // Date helpers
+  domElements.btnSetStartToday.addEventListener('click', () => {
+    domElements.projStart.value = formatDate(new Date());
+    validateDateInput(domElements.projStart);
+  });
+  
+  domElements.btnSetDueToday.addEventListener('click', () => {
+    domElements.projDue.value = formatDate(new Date());
+    validateDateInput(domElements.projDue);
+  });
+  
+  domElements.btnStepDueToday.addEventListener('click', () => {
+    domElements.stepDue.value = formatDate(new Date());
+    validateDateInput(domElements.stepDue);
+  });
+  
+  domElements.btnSubDueToday.addEventListener('click', () => {
+    domElements.subDue.value = formatDate(new Date());
+    validateDateInput(domElements.subDue);
+  });
+  
+  // Date validation
+  domElements.projStart.addEventListener('blur', () => validateDateInput(domElements.projStart));
+  domElements.projDue.addEventListener('blur', () => validateDateInput(domElements.projDue));
+  domElements.stepDue.addEventListener('blur', () => validateDateInput(domElements.stepDue));
+  domElements.subDue.addEventListener('blur', () => validateDateInput(domElements.subDue));
+  
+  // Search and filter
+  domElements.searchInput.addEventListener('input', renderProjectList);
+  domElements.statusFilter.addEventListener('change', renderProjectList);
+  
+  // Export/Import
+  domElements.btnExport.addEventListener('click', exportData);
+  domElements.importFile.addEventListener('change', (e) => {
+    if (e.target.files.length > 0) {
+      importData(e.target.files[0]);
+      e.target.value = ''; // Reset file input
+    }
+  });
+  
+  // Overdue items
+  domElements.btnViewOverdue.addEventListener('click', () => {
+    renderOverdueModal();
+    domElements.modalBackdrop.style.display = 'grid';
+  });
+  
+  domElements.btnDismissOverdue.addEventListener('click', () => {
+    domElements.overdueBanner.classList.remove('show');
+  });
+  
+  domElements.modalClose.addEventListener('click', () => {
+    domElements.modalBackdrop.style.display = 'none';
+  });
+  
+  domElements.modalBackdrop.addEventListener('click', (e) => {
+    if (e.target === domElements.modalBackdrop) {
+      domElements.modalBackdrop.style.display = 'none';
+    }
+  });
+  
+  // Toast
+  domElements.toastClose.addEventListener('click', () => {
+    domElements.toast.classList.remove('show');
+  });
+}
+
+// Initialize App
+function initApp() {
+  setupEventListeners();
+  renderProjectList();
+  renderDashboard();
+  
+  // Enable project view button if we have a current project
+  if (currentProjectId) {
+    domElements.viewProject.disabled = false;
+  }
+  
+  // Check if we should show project view based on URL hash
+  const hash = window.location.hash.replace('#', '');
+  if (hash) {
+    const project = projects.find(p => p.id === hash);
+    if (project) {
+      loadProject(project.id);
+      switchView('project');
+    }
+  }
+}
+
+// Start the app when DOM is loaded
+document.addEventListener('DOMContentLoaded', initApp);
+</script>
 </body>
 </html>
